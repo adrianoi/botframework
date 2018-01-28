@@ -152,22 +152,26 @@ namespace TimeBot
         [LuisIntent("Greeting")]
         public async Task GreetingIntent(IDialogContext context, LuisResult result)
         {
-
-            Models.User user = GetUser(context);
-            //bool existingUser;
-            //context.PrivateConversationData.TryGetValue<bool>("isExistingUser", out existingUser);
-            if (user.ExistingUser.Equals(1))
+            if (result.TopScoringIntent.Score < 0.6)
             {
-
-                string username;
-                context.PrivateConversationData.TryGetValue<string>("Username", out username);
-
-                await context.PostAsync($"Hi {user.UserName}, welcome back!");
+                None(context);
             }
             else
             {
-                PromptDialog.Text(context, After_UsernamePrompt, "Hi there! I didn't get your name, what shall I call you?");
-            }        
+                Models.User user = GetUser(context);
+                //bool existingUser;
+                //context.PrivateConversationData.TryGetValue<bool>("isExistingUser", out existingUser);
+                if (user.ExistingUser.Equals(1))
+                {
+                    context.PrivateConversationData.SetValue<string>("Username", user.UserName);
+
+                    await context.PostAsync($"Hi {user.UserName}, welcome back!");
+                }
+                else
+                {
+                    PromptDialog.Text(context, After_UsernamePrompt, "Hi there! I didn't get your name, what shall I call you?");
+                }
+            }
 
         }
 
@@ -206,14 +210,22 @@ namespace TimeBot
         [LuisIntent("Farewell")]
         public async Task FarewellIntent(IDialogContext context, LuisResult result)
         {
-            string username;
-            if (context.PrivateConversationData.TryGetValue<string>("Username", out username))
+            if (result.TopScoringIntent.Score < 0.6)
             {
-                await context.PostAsync($"Until we meet again {username}, take care.");
+                None(context);
             }
             else
             {
-                await context.PostAsync("Until we meet again stranger, take care.");
+
+                string username;
+                if (context.PrivateConversationData.TryGetValue<string>("Username", out username))
+                {
+                    await context.PostAsync($"Until we meet again {username}, take care.");
+                }
+                else
+                {
+                    await context.PostAsync("Until we meet again stranger, take care.");
+                }
             }
             
         }
@@ -222,10 +234,17 @@ namespace TimeBot
         [LuisIntent("Time.GetTime")]
         public async Task GetTimeIntent(IDialogContext context, LuisResult result)
         {
-            TimeRetriver timeRetriver = new TimeRetriver();
-            await context.PostAsync("The current time is: " + timeRetriver.ToString());
-            context.Wait(MessageReceived);
-            
+            if (result.TopScoringIntent.Score < 0.6)
+            {
+                None(context);
+            }
+            else
+            {
+
+                TimeRetriver timeRetriver = new TimeRetriver();
+                await context.PostAsync("The current time is: " + timeRetriver.ToString());
+                context.Wait(MessageReceived);
+            }
         }
 
         private Event eventToCreate;
@@ -235,48 +254,56 @@ namespace TimeBot
         [LuisIntent("Event.Create")]
         public Task CreateEventIntent(IDialogContext context, LuisResult result)
         {
-            
 
-            //Find the name of the event
-            EntityRecommendation name;
-            EntityRecommendation time;
-            existingTime = false;
-            existingName = false;
-            if((!result.TryFindEntity(Entity_Event_Name, out name)) && (!result.TryFindEntity(Entity_Event_DateTime, out time)))
+            if (result.TopScoringIntent.Score < 0.6)
             {
-                PromptDialog.Text(context, After_NamePrompt, "What would you like to call your event?");
+                None(context);
+                return Task.CompletedTask;
             }
-            else if ((result.TryFindEntity(Entity_Event_Name, out name)) && (!result.TryFindEntity(Entity_Event_DateTime, out time)))
+            else
             {
-                //Create the new event object
-                var newEvent = new Event() { Name = name.Entity };
-                //Add the new event to the list of events and also save it in order to add content to it later
-                eventToCreate = this.eventByTitle[newEvent.Name] = newEvent;
-                existingName = true;
-                //Ask the user what time they want the event to happen
-                PromptDialog.Text(context, After_TimePrompt, "What time would you like to schedule this event?");                  
+
+                //Find the name of the event
+                EntityRecommendation name;
+                EntityRecommendation time;
+                existingTime = false;
+                existingName = false;
+                if ((!result.TryFindEntity(Entity_Event_Name, out name)) && (!result.TryFindEntity(Entity_Event_DateTime, out time)))
+                {
+                    PromptDialog.Text(context, After_NamePrompt, "What would you like to call your event?");
+                }
+                else if ((result.TryFindEntity(Entity_Event_Name, out name)) && (!result.TryFindEntity(Entity_Event_DateTime, out time)))
+                {
+                    //Create the new event object
+                    var newEvent = new Event() { Name = name.Entity };
+                    //Add the new event to the list of events and also save it in order to add content to it later
+                    eventToCreate = this.eventByTitle[newEvent.Name] = newEvent;
+                    existingName = true;
+                    //Ask the user what time they want the event to happen
+                    PromptDialog.Text(context, After_TimePrompt, "What time would you like to schedule this event?");
+                }
+                else if ((!result.TryFindEntity(Entity_Event_Name, out name)) && (result.TryFindEntity(Entity_Event_DateTime, out time)))
+                {
+                    name = new EntityRecommendation(type: Entity_Event_Name) { Entity = DefaultEventName };
+                    //Create the new event object
+                    var newEvent = new Event() { Name = name.Entity, Time = time.Entity };
+                    //Add the new event to the list of events and also save it in order to add content to it later
+                    eventToCreate = this.eventByTitle[newEvent.Name] = newEvent;
+                    existingTime = true;
+                    PromptDialog.Text(context, After_NamePrompt, "What would you like to call this event?");
+                }
+                else if ((result.TryFindEntity(Entity_Event_Name, out name)) && (result.TryFindEntity(Entity_Event_DateTime, out time)))
+                {
+                    //Create the new event object
+                    var newEvent = new Event() { Name = name.Entity, Time = time.Entity };
+                    //Add the new event to the list of events and also save it in order to add content to it later
+                    eventToCreate = this.eventByTitle[newEvent.Name] = newEvent;
+                    existingTime = true;
+                    existingName = true;
+                    DisplayEvent(context);
+                }
+                return Task.CompletedTask;
             }
-            else if ((!result.TryFindEntity(Entity_Event_Name, out name)) && (result.TryFindEntity(Entity_Event_DateTime, out time)))
-            {
-                name = new EntityRecommendation(type: Entity_Event_Name) { Entity = DefaultEventName };
-                //Create the new event object
-                var newEvent = new Event() {Name = name.Entity, Time = time.Entity };
-                //Add the new event to the list of events and also save it in order to add content to it later
-                eventToCreate = this.eventByTitle[newEvent.Name] = newEvent;
-                existingTime = true;
-                PromptDialog.Text(context, After_NamePrompt, "What would you like to call this event?");
-            }
-            else if ((result.TryFindEntity(Entity_Event_Name, out name)) && (result.TryFindEntity(Entity_Event_DateTime, out time)))
-            {
-                //Create the new event object
-                var newEvent = new Event() { Name = name.Entity, Time = time.Entity };
-                //Add the new event to the list of events and also save it in order to add content to it later
-                eventToCreate = this.eventByTitle[newEvent.Name] = newEvent;
-                existingTime = true;
-                existingName = true;
-                DisplayEvent(context);
-            }     
-            return Task.CompletedTask;
         }
         //This task deals with adding the time to the event
         private async Task After_NamePrompt(IDialogContext context, IAwaitable<string> result)
@@ -347,81 +374,112 @@ namespace TimeBot
         [LuisIntent("ThankYou")]
         public async Task ThankYouIntent(IDialogContext context, LuisResult result)
         {
-            string username;
-            if (context.PrivateConversationData.TryGetValue<string>("Username", out username))
+            if (result.TopScoringIntent.Score < 0.6)
             {
-                await context.PostAsync($"Always happy to help {username}!");
+                None(context);
             }
             else
             {
-                await context.PostAsync("Always happy to help!");
 
+                string username;
+                if (context.PrivateConversationData.TryGetValue<string>("Username", out username))
+                {
+                    await context.PostAsync($"Always happy to help {username}!");
+                }
+                else
+                {
+                    await context.PostAsync("Always happy to help!");
+
+                }
+
+                context.Wait(MessageReceived);
             }
-            
-            context.Wait(MessageReceived);
         }
 
         //List all events
         [LuisIntent("Event.GetAll")]
         public async Task GetAllEventsIntent(IDialogContext context, LuisResult result)
         {
-
-            if (eventByTitle.Count < 1)
+            if (result.TopScoringIntent.Score < 0.6)
             {
-                await context.PostAsync("There are currently no events scheduled. Ask me to create one for you!");                
+                None(context);
             }
             else
             {
-                string EventList = "Here's the list of all your events: \n\n";
-                foreach (KeyValuePair<string, Event> entry in eventByTitle)
+
+                if (eventByTitle.Count < 1)
                 {
-                    Event eventInList = entry.Value;
-                    EventList += $"**{eventInList.Name}** at {eventInList.Time}.\n\n";
+                    await context.PostAsync("There are currently no events scheduled. Ask me to create one for you!");
                 }
-                await context.PostAsync(EventList);
-            }           
-            context.Wait(MessageReceived);
+                else
+                {
+                    string EventList = "Here's the list of all your events: \n\n";
+                    foreach (KeyValuePair<string, Event> entry in eventByTitle)
+                    {
+                        Event eventInList = entry.Value;
+                        EventList += $"**{eventInList.Name}** at {eventInList.Time}.\n\n";
+                    }
+                    await context.PostAsync(EventList);
+                }
+                context.Wait(MessageReceived);
+            }
         }
 
         //Fetches a specific event
         [LuisIntent("Event.Get")]
         public async Task GetEventIntent(IDialogContext context, LuisResult result)
         {
-            Event foundEvent;
-            if (TryFindEvent(result, out foundEvent))
+            if (result.TopScoringIntent.Score < 0.6)
             {
-                await context.PostAsync($"The event **{foundEvent.Name}** is scheduled for {foundEvent.Time}");
-            }
-            else if (eventByTitle.Count >= 1)
-            {
-                await context.PostAsync("Sorry, I couldn't find the event you asked for... Please check the spelling and try again.");
+                None(context);
             }
             else
             {
-                await context.PostAsync("There aren't any events scheduled. Create an event and then ask me again! :)");
+
+                Event foundEvent;
+                if (TryFindEvent(result, out foundEvent))
+                {
+                    await context.PostAsync($"The event **{foundEvent.Name}** is scheduled for {foundEvent.Time}");
+                }
+                else if (eventByTitle.Count >= 1)
+                {
+                    await context.PostAsync("Sorry, I couldn't find the event you asked for... Please check the spelling and try again.");
+                }
+                else
+                {
+                    await context.PostAsync("There aren't any events scheduled. Create an event and then ask me again! :)");
+                }
+                context.Wait(MessageReceived);
             }
-            context.Wait(MessageReceived);
         }
 
         //Deletes an event
         [LuisIntent("Event.Delete")]
         public async Task DeleteEventIntent(IDialogContext context, LuisResult result)
         {
-            Event eventToDelete;
-            if (eventByTitle.Count <1)
+            if (result.TopScoringIntent.Score < 0.6)
             {
-                await context.PostAsync("I don't have any events to delete. Ask me to create one :)");
-                context.Wait(MessageReceived);
-            }
-            else if (TryFindEvent(result, out eventToDelete))
-            {
-                this.eventByTitle.Remove(eventToDelete.Name);
-                await context.PostAsync($"Event **{eventToDelete.Name}** deleted.");
+                None(context);
             }
             else
             {
-                //If you can find the name of the event, ask the user for it
-                PromptDialog.Text(context, After_DeleteTitlePrompt, "What is the name of the event you want to delete?");
+
+                Event eventToDelete;
+                if (eventByTitle.Count < 1)
+                {
+                    await context.PostAsync("I don't have any events to delete. Ask me to create one :)");
+                    context.Wait(MessageReceived);
+                }
+                else if (TryFindEvent(result, out eventToDelete))
+                {
+                    this.eventByTitle.Remove(eventToDelete.Name);
+                    await context.PostAsync($"Event **{eventToDelete.Name}** deleted.");
+                }
+                else
+                {
+                    //If you can find the name of the event, ask the user for it
+                    PromptDialog.Text(context, After_DeleteTitlePrompt, "What is the name of the event you want to delete?");
+                }
             }
         }
 
@@ -448,15 +506,23 @@ namespace TimeBot
         [LuisIntent("OnDevice.Help")]
         public async Task HelpIntent(IDialogContext context, LuisResult result)
         {
-            await context.PostAsync($"Here's a list of things I can do: \n\n" +
+            if (result.TopScoringIntent.Score < 0.6)
+            {
+                None(context);
+            }
+            else
+            {
+
+                await context.PostAsync($"Here's a list of things I can do: \n\n" +
                 "- Create an event for you \n\n" +
                 "- Tell you what time an event is scheduled to happen \n\n" +
                 "- Show you a list of all the events you have scheduled \n\n" +
                 "- Delete an event for you \n\n" +
-                "- Tell you what the time is \n\n\n" + 
+                "- Tell you what the time is \n\n\n" +
                 "What can I do for you? :)");
 
-            context.Wait(MessageReceived);
+                context.Wait(MessageReceived);
+            }
         }
 
 
