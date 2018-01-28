@@ -12,7 +12,7 @@
 		</CustomData>
 		<CustomData Category="Reference" Type="Assembly">
 			<Metadata Name="LogicalName" Value="TimeBotDB.dll" />
-			<Metadata Name="FileName" Value="C:\USERS\DANIEL\DOCUMENTS\DANIEL\TAURATI SOFTWARE\PROJECTS\TIMEBOT\TIMEBOTDB\OBJ\DEBUG\TIMEBOTDB.DLL" />
+			<Metadata Name="FileName" Value="C:\USERS\DANIEL\DOCUMENTS\DANIEL\TAURATI SOFTWARE\PROJECTS\TIMEBOT\CODE\TIMEBOTDB\OBJ\DEBUG\TIMEBOTDB.DLL" />
 			<Metadata Name="AssemblyName" Value="TimeBotDB" />
 			<Metadata Name="PermissionSet" Value="SAFE" />
 			<Metadata Name="Owner" Value="" />
@@ -20,7 +20,7 @@
 			<Metadata Name="IsVisible" Value="True" />
 			<Metadata Name="IsModelAware" Value="True" />
 			<Metadata Name="SkipCreationIfEmpty" Value="True" />
-			<Metadata Name="AssemblySymbolsName" Value="C:\Users\Daniel\Documents\Daniel\Taurati Software\Projects\TimeBot\TimeBotDB\obj\Debug\TimeBotDB.pdb" />
+			<Metadata Name="AssemblySymbolsName" Value="C:\Users\Daniel\Documents\Daniel\Taurati Software\Projects\TimeBot\Code\TimeBotDB\obj\Debug\TimeBotDB.pdb" />
 		</CustomData>
 		<CustomData Category="SqlCmdVariables" Type="SqlCmdVariable" />
 	</Header>

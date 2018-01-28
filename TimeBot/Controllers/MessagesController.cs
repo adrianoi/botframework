@@ -29,14 +29,56 @@ namespace TimeBot
             
             if (activity.Type == ActivityTypes.Message)
             {
+                //
+
+                //Log to DB
+                //Instantiate the BotData dbContext
+                Models.TimeBotDBEntities1 db = new Models.TimeBotDBEntities1();
+                //Create a new User object
+                Models.User newUser = new Models.User();
+                //Set properties of user object
+                newUser.UserID = activity.From.Id;
+                newUser.UserName = activity.From.Name;
+
+                StateClient stateClient = activity.GetStateClient();
+                BotData botData = stateClient.BotState.GetPrivateConversationData(activity.ChannelId, activity.Conversation.Id, activity.From.Id);
+
+                if (!isExistingUser(newUser))
+                {
+                    newUser.ExistingUser = 0;
+
+                    db.Users.Add(newUser);
+                    db.SaveChangesAsync();
+                        
+                    botData.SetProperty<bool>("isExistingUser", false);
+
+                }   
+                else
+                {
+                    botData.SetProperty<bool>("isExistingUser", true);
+                    botData.SetProperty<string>("Username", newUser.UserName);
+                    botData.SetProperty<int>("Id", Int32.Parse(activity.From.Id));
+                }
+
                 await Conversation.SendAsync(activity, () => new GetTimeDialog());
+
             }
             else
             {
                 HandleSystemMessage(activity);
             }
             var response = Request.CreateResponse(HttpStatusCode.OK);
-            return response;
+            return response;            
+        }
+        private bool isExistingUser(Models.User user)
+        {
+            Models.TimeBotDBEntities1 db = new Models.TimeBotDBEntities1();
+
+            if (db.Users.FindAsync(user.UserID) == null)
+            {
+                return true;
+            }
+            return false;
         }
 
         private Activity HandleSystemMessage(Activity message)
@@ -110,10 +152,17 @@ namespace TimeBot
         [LuisIntent("Greeting")]
         public async Task GreetingIntent(IDialogContext context, LuisResult result)
         {
-            string username;
-            if (context.PrivateConversationData.TryGetValue<string>("Username", out username))
+
+            Models.User user = GetUser(context);
+            //bool existingUser;
+            //context.PrivateConversationData.TryGetValue<bool>("isExistingUser", out existingUser);
+            if (user.ExistingUser.Equals(1))
             {
-                await context.PostAsync($"Hi {username}, welcome back!");
+
+                string username;
+                context.PrivateConversationData.TryGetValue<string>("Username", out username);
+
+                await context.PostAsync($"Hi {user.UserName}, welcome back!");
             }
             else
             {
@@ -125,10 +174,32 @@ namespace TimeBot
         private async Task After_UsernamePrompt(IDialogContext context, IAwaitable<string> result)
         {
             string username = await result;
+
+            Models.TimeBotDBEntities1 db = new Models.TimeBotDBEntities1();
+            Models.User newUser = new Models.User();
+            int id;
+            context.PrivateConversationData.TryGetValue<int>("Id", out id);
+
+            newUser = db.Users.FindAsync(id).Result;
+            newUser.UserName = username;
+            newUser.ExistingUser = 1;
+            db.SaveChangesAsync();
+
             context.PrivateConversationData.SetValue<string>("Username", username);
             await context.PostAsync($"Pleasure to meet you {username}.");
             await context.PostAsync("What can I do for you?");
             context.Wait(MessageReceived);
+        }
+
+        private Models.User GetUser(IDialogContext context)
+        {
+            Models.TimeBotDBEntities1 db = new Models.TimeBotDBEntities1();
+            Models.User user = new Models.User();
+            int id;
+            context.PrivateConversationData.TryGetValue<int>("Id", out id);
+
+            user = db.Users.FindAsync(id).Result;
+            return user;
         }
 
         //Farewell
