@@ -121,7 +121,7 @@ namespace TimeBot
         {
             public string Name { get; set; }
             public string Time { get; set; }
-
+            public string PersonName { get; set; }
             public override string ToString()
             {
                 return $"[{this.Name} is at {this.Time}]";
@@ -129,7 +129,7 @@ namespace TimeBot
 
             public bool Equals(Event other)
             {
-                return other != null && this.Name == other.Name && this.Time == other.Time;
+                return other != null && this.Name == other.Name && this.Time == other.Time && this.PersonName == other.PersonName;
             }
 
             public override bool Equals(object other)
@@ -146,8 +146,9 @@ namespace TimeBot
         public const string Entity_Event_Name = "Event.Name";
         public const string Entity_Event_DateTime = "builtin.datetimeV2.time";
         public const string DefaultEventName = "default";
+        public const string Entity_Event_Person_Name = "Event.PersonName";
 
-        
+
         //Greeting
         [LuisIntent("Greeting")]
         public async Task GreetingIntent(IDialogContext context, LuisResult result)
@@ -169,7 +170,7 @@ namespace TimeBot
                 }
                 else
                 {
-                    PromptDialog.Text(context, After_UsernamePrompt, "Hi there! I didn't get your name, what shall I call you?");
+                    PromptDialog.Text(context, After_UsernamePrompt, "Hi there! I don't this we've met, what shall I call you?");
                 }
             }
 
@@ -251,6 +252,7 @@ namespace TimeBot
         private string currentName;
         private bool existingTime;
         private bool existingName;
+        private bool existingPerson;
         [LuisIntent("Event.Create")]
         public Task CreateEventIntent(IDialogContext context, LuisResult result)
         {
@@ -266,13 +268,31 @@ namespace TimeBot
                 //Find the name of the event
                 EntityRecommendation name;
                 EntityRecommendation time;
+                EntityRecommendation person;
                 existingTime = false;
                 existingName = false;
-                if ((!result.TryFindEntity(Entity_Event_Name, out name)) && (!result.TryFindEntity(Entity_Event_DateTime, out time)))
+                existingPerson = false;
+                if ((!result.TryFindEntity(Entity_Event_Name, out name)) && (!result.TryFindEntity(Entity_Event_DateTime, out time)) && (!result.TryFindEntity(Entity_Event_Person_Name, out person)))
                 {
+                    name = new EntityRecommendation(type: Entity_Event_Name) { Entity = DefaultEventName };
+                    //Create the new event object
+                    var newEvent = new Event() { Name = name.Entity};
+                    //Add the new event to the list of events and also save it in order to add content to it later
+                    eventToCreate = this.eventByTitle[newEvent.Name] = newEvent;
                     PromptDialog.Text(context, After_NamePrompt, "What would you like to call your event?");
                 }
-                else if ((result.TryFindEntity(Entity_Event_Name, out name)) && (!result.TryFindEntity(Entity_Event_DateTime, out time)))
+                else if ((!result.TryFindEntity(Entity_Event_Name, out name)) && (!result.TryFindEntity(Entity_Event_DateTime, out time)) && (result.TryFindEntity(Entity_Event_Person_Name, out person)))
+                {
+                    name = new EntityRecommendation(type: Entity_Event_Name) { Entity = DefaultEventName };
+                    //Create the new event object
+                    var newEvent = new Event() { Name = name.Entity, PersonName = person.Entity };
+                    //Add the new event to the list of events and also save it in order to add content to it later
+                    eventToCreate = this.eventByTitle[newEvent.Name] = newEvent;
+                    eventToCreate.PersonName = newEvent.PersonName;
+                    existingPerson = true;
+                    PromptDialog.Text(context, After_NamePrompt, "What would you like to call this event?");
+                }                      
+                else if ((result.TryFindEntity(Entity_Event_Name, out name)) && (!result.TryFindEntity(Entity_Event_DateTime, out time)) && (!result.TryFindEntity(Entity_Event_Person_Name, out person)))
                 {
                     //Create the new event object
                     var newEvent = new Event() { Name = name.Entity };
@@ -282,7 +302,17 @@ namespace TimeBot
                     //Ask the user what time they want the event to happen
                     PromptDialog.Text(context, After_TimePrompt, "What time would you like to schedule this event?");
                 }
-                else if ((!result.TryFindEntity(Entity_Event_Name, out name)) && (result.TryFindEntity(Entity_Event_DateTime, out time)))
+                else if ((result.TryFindEntity(Entity_Event_Name, out name)) && (!result.TryFindEntity(Entity_Event_DateTime, out time)) && (result.TryFindEntity(Entity_Event_Person_Name, out person)))
+                {
+                    //Create the new event object
+                    var newEvent = new Event() { Name = name.Entity, PersonName = person.Entity };
+                    //Add the new event to the list of events and also save it in order to add content to it later
+                    eventToCreate = this.eventByTitle[newEvent.Name] = newEvent;
+                    existingName = true;
+                    //Ask the user what time they want the event to happen
+                    PromptDialog.Text(context, After_TimePrompt, "What time would you like to schedule this event?");
+                }
+                else if ((!result.TryFindEntity(Entity_Event_Name, out name)) && (result.TryFindEntity(Entity_Event_DateTime, out time)) && (!result.TryFindEntity(Entity_Event_Person_Name, out person)))
                 {
                     name = new EntityRecommendation(type: Entity_Event_Name) { Entity = DefaultEventName };
                     //Create the new event object
@@ -292,7 +322,18 @@ namespace TimeBot
                     existingTime = true;
                     PromptDialog.Text(context, After_NamePrompt, "What would you like to call this event?");
                 }
-                else if ((result.TryFindEntity(Entity_Event_Name, out name)) && (result.TryFindEntity(Entity_Event_DateTime, out time)))
+                else if ((!result.TryFindEntity(Entity_Event_Name, out name)) && (result.TryFindEntity(Entity_Event_DateTime, out time)) && (result.TryFindEntity(Entity_Event_Person_Name, out person)))
+                {
+                    name = new EntityRecommendation(type: Entity_Event_Name) { Entity = DefaultEventName };
+                    //Create the new event object
+                    var newEvent = new Event() { Name = name.Entity, Time = time.Entity , PersonName = person.Entity};
+                    //Add the new event to the list of events and also save it in order to add content to it later
+                    eventToCreate = this.eventByTitle[newEvent.Name] = newEvent;
+                    existingTime = true;
+                    existingPerson = true;
+                    PromptDialog.Text(context, After_NamePrompt, "What would you like to call this event?");
+                }
+                else if ((result.TryFindEntity(Entity_Event_Name, out name)) && (result.TryFindEntity(Entity_Event_DateTime, out time)) && (!result.TryFindEntity(Entity_Event_Person_Name, out person)))
                 {
                     //Create the new event object
                     var newEvent = new Event() { Name = name.Entity, Time = time.Entity };
@@ -300,8 +341,20 @@ namespace TimeBot
                     eventToCreate = this.eventByTitle[newEvent.Name] = newEvent;
                     existingTime = true;
                     existingName = true;
-                    DisplayEvent(context);
+                    PersonQueryPrompt(context);
                 }
+                else if ((result.TryFindEntity(Entity_Event_Name, out name)) && (result.TryFindEntity(Entity_Event_DateTime, out time)) && (result.TryFindEntity(Entity_Event_Person_Name, out person)))
+                {
+                    //Create the new event object
+                    var newEvent = new Event() { Name = name.Entity, Time = time.Entity, PersonName = person.Entity };
+                    //Add the new event to the list of events and also save it in order to add content to it later
+                    eventToCreate = this.eventByTitle[newEvent.Name] = newEvent;
+                    existingTime = true;
+                    existingName = true;
+                    DisplayEvent(context);
+
+                }
+
                 return Task.CompletedTask;
             }
         }
@@ -326,8 +379,8 @@ namespace TimeBot
 
                 if (!existingName)
                 {
-                    var updatedEvent = new Event(){Name = name.Entity };
-                    eventToCreate = this.eventByTitle[updatedEvent.Name] = updatedEvent;
+                    eventToCreate = this.eventByTitle[DefaultEventName];
+                    eventToCreate.Name = name.Entity;
                 }
                 else
                 {
@@ -343,30 +396,117 @@ namespace TimeBot
             }
             else
             {
-                await DisplayEvent(context);
+
+                if (!existingName)
+                {
+                    eventToCreate = this.eventByTitle[DefaultEventName];
+                    eventToCreate.Name = name.Entity;
+
+                    if (!existingPerson)
+                    {
+                        await PersonQueryPrompt(context);
+                    }
+                    else
+                    {
+                        await DisplayEvent(context);
+                    }
+                }
+                else
+                {
+                    //Create the new event object
+                    var newEvent = new Event() { Name = name.Entity };
+                    //Add the new event to the list of events and also save it in order to add content to it later
+                    eventToCreate = this.eventByTitle[newEvent.Name] = newEvent;
+                    await DisplayEvent(context);
+                }
+
+                
             }     
                   
-        }    
+        }
+        public enum PersonQueryOptions
+        {
+           Yes,
+           No
+        }
+
+        public virtual async Task PersonQueryPrompt(IDialogContext context)
+        {
+
+            PromptDialog.Choice(
+                context: context,
+                resume: ChoiceReceivedAsync,
+                options: (IEnumerable<PersonQueryOptions>)Enum.GetValues(typeof(PersonQueryOptions)),
+                prompt: "Would you like to associate this event when someone?",
+                retry: "Selected option not avilable . Please try again.",
+                promptStyle: PromptStyle.Auto
+                );
+        }
+
+        public virtual async Task ChoiceReceivedAsync(IDialogContext context, IAwaitable<PersonQueryOptions> activity)
+        {
+            PersonQueryOptions response = await activity;
+            if (response == PersonQueryOptions.No)
+            {
+                await DisplayEvent(context);
+            }
+            else
+            {
+                PromptDialog.Text(context, After_PersonNamePrompt, "What's this person's name?");
+            }
+        }
+
+        private async Task After_PersonQueryPrompt(IDialogContext context, IAwaitable<string> result)
+        {
+            eventToCreate.PersonName = await result;
+
+            await DisplayEvent(context);
+        }
 
         private async Task After_TimePrompt(IDialogContext context, IAwaitable<string> result)
         {
             //Set the time of the event           
             eventToCreate.Time = await result;
 
+            if (eventToCreate.PersonName == null)
+            {
+                PersonQueryPrompt(context);
+            }
+            else
+            {
+                await DisplayEvent(context);
+            }
+            
+        }
+
+        private async Task After_PersonNamePrompt(IDialogContext context, IAwaitable<string> result)
+        {
+            eventToCreate.PersonName = await result;
             await DisplayEvent(context);
         }
 
         private async Task DisplayEvent(IDialogContext context)
         {
             string username;
+            string message = "";
             if (context.PrivateConversationData.TryGetValue<string>("Username", out username))
             {
-                await context.PostAsync($"Ok {username}, I've created the event **{this.eventToCreate.Name}** which is scheduled for {this.eventToCreate.Time}.");
+                message = $"Ok { username}, I've created the event ";
             }
             else
             {
-                await context.PostAsync($"Created event **{this.eventToCreate.Name}** which is scheduled at {this.eventToCreate.Time}");
+                message = "I've created the event ";
             }            
+            
+            if (this.eventToCreate.PersonName == null)
+            {
+                message = message + $"**{ this.eventToCreate.Name}** which is scheduled for {this.eventToCreate.Time}.";
+            }
+            else
+            {
+                message = message + $"**{ this.eventToCreate.Name}** which is scheduled for {this.eventToCreate.Time} with {this.eventToCreate.PersonName}.";
+            }
+            await context.PostAsync(message);
             context.Wait(MessageReceived);
         }
 
@@ -400,7 +540,7 @@ namespace TimeBot
         [LuisIntent("Event.GetAll")]
         public async Task GetAllEventsIntent(IDialogContext context, LuisResult result)
         {
-            if (result.TopScoringIntent.Score < 0.6)
+            if (result.TopScoringIntent.Score < 0.4)
             {
                 None(context);
             }
