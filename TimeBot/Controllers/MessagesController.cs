@@ -124,7 +124,16 @@ namespace TimeBot
             public string PersonName { get; set; }
             public override string ToString()
             {
-                return $"[{this.Name} is at {this.Time}]";
+                if (PersonName == null)
+                {
+                    return $"- **{this.Name}** is at {this.Time}";
+                }
+                else
+                {
+                    return $"- **{this.Name}** is at {this.Time} with {this.PersonName}";
+                }
+
+                
             }
 
             public bool Equals(Event other)
@@ -557,7 +566,7 @@ namespace TimeBot
                     foreach (KeyValuePair<string, Event> entry in eventByTitle)
                     {
                         Event eventInList = entry.Value;
-                        EventList += $"**{eventInList.Name}** at {eventInList.Time}.\n\n";
+                        EventList += eventInList.ToString() + ".\n\n";
                     }
                     await context.PostAsync(EventList);
                 }

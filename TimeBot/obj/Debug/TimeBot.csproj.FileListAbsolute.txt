@@ -84,4 +84,3 @@ C:\Users\Daniel\Documents\Daniel\Taurati Software\Projects\TimeBot\Code\TimeBot\
 C:\Users\Daniel\Documents\Daniel\Taurati Software\Projects\TimeBot\Code\TimeBot\obj\Debug\TimeBot.csproj.CoreCompileInputs.cache
 C:\Users\Daniel\Documents\Daniel\Taurati Software\Projects\TimeBot\Code\TimeBot\obj\Debug\Bot Application.dll
 C:\Users\Daniel\Documents\Daniel\Taurati Software\Projects\TimeBot\Code\TimeBot\obj\Debug\Bot Application.pdb
-C:\Users\Daniel\Documents\Daniel\Taurati Software\Projects\TimeBot\Code\TimeBot\obj\Debug\TimeBot.csprojResolveAssemblyReference.cache
