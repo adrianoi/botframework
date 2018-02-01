@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.27130.2026
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TimeBot", "TimeBot\TimeBot.csproj", "{CDAA1AF9-74D2-49A1-8C0C-5DE4EC8820E9}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TimeBot", "TimeBot\TimeBot.csproj", "{11E755F1-3B7E-4ED3-B643-FA984304635A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -11,15 +11,15 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{CDAA1AF9-74D2-49A1-8C0C-5DE4EC8820E9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{CDAA1AF9-74D2-49A1-8C0C-5DE4EC8820E9}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{CDAA1AF9-74D2-49A1-8C0C-5DE4EC8820E9}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{CDAA1AF9-74D2-49A1-8C0C-5DE4EC8820E9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{11E755F1-3B7E-4ED3-B643-FA984304635A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{11E755F1-3B7E-4ED3-B643-FA984304635A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{11E755F1-3B7E-4ED3-B643-FA984304635A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{11E755F1-3B7E-4ED3-B643-FA984304635A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
-		SolutionGuid = {3E655D3C-EC71-4800-8B0E-7D11C1EA0EA1}
+		SolutionGuid = {FF40D126-1D72-46D2-B98C-2FB5C3679742}
 	EndGlobalSection
 EndGlobal

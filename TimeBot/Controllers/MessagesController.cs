@@ -26,14 +26,12 @@ namespace TimeBot
         public async Task<HttpResponseMessage> Post([FromBody]Activity activity)
         {
 
-            
+
             if (activity.Type == ActivityTypes.Message)
             {
-                //
-
                 //Log to DB
                 //Instantiate the BotData dbContext
-                Models.TimeBotDBEntities1 db = new Models.TimeBotDBEntities1();
+                Models.BotDataEntities db = new Models.BotDataEntities();
                 //Create a new User object
                 Models.User newUser = new Models.User();
                 //Set properties of user object
@@ -42,6 +40,7 @@ namespace TimeBot
 
                 StateClient stateClient = activity.GetStateClient();
                 BotData botData = stateClient.BotState.GetPrivateConversationData(activity.ChannelId, activity.Conversation.Id, activity.From.Id);
+                IDialogContext context;
 
                 if (!isExistingUser(newUser))
                 {
@@ -49,15 +48,15 @@ namespace TimeBot
 
                     db.Users.Add(newUser);
                     db.SaveChangesAsync();
-                        
+
                     botData.SetProperty<bool>("isExistingUser", false);
 
-                }   
+                }
                 else
                 {
                     botData.SetProperty<bool>("isExistingUser", true);
                     botData.SetProperty<string>("Username", newUser.UserName);
-                    botData.SetProperty<int>("Id", Int32.Parse(activity.From.Id));
+                    botData.SetProperty<string>("Id", activity.From.Id);
                 }
 
                 await Conversation.SendAsync(activity, () => new GetTimeDialog());
@@ -68,17 +67,21 @@ namespace TimeBot
                 HandleSystemMessage(activity);
             }
             var response = Request.CreateResponse(HttpStatusCode.OK);
-            return response;            
+            return response;
         }
         private bool isExistingUser(Models.User user)
         {
-            Models.TimeBotDBEntities1 db = new Models.TimeBotDBEntities1();
-
-            if (db.Users.FindAsync(user.UserID) == null)
+            Models.BotDataEntities db = new Models.BotDataEntities();
+            var result = db.Users.Find(user.UserID);
+            if (db.Users.Find(user.UserID) == null)
+            {
+                return false;
+            }
+            else
             {
                 return true;
             }
-            return false;
+
         }
 
         private Activity HandleSystemMessage(Activity message)
@@ -112,7 +115,7 @@ namespace TimeBot
     }
     [LuisModel("fa643f4b-d76d-4b61-bd2e-cf85d520b7b8", "137fcf0303804aa5a0a727186a577d8d", domain: "westus.api.cognitive.microsoft.com")]
     [Serializable]
-    public class GetTimeDialog: LuisDialog<object>
+    public class GetTimeDialog : LuisDialog<object>
     {
         private readonly Dictionary<string, Event> eventByTitle = new Dictionary<string, Event>();
         //Careful - "event" is a reserved word
@@ -133,7 +136,7 @@ namespace TimeBot
                     return $"- **{this.Name}** is at {this.Time} with {this.PersonName}";
                 }
 
-                
+
             }
 
             public bool Equals(Event other)
@@ -164,13 +167,12 @@ namespace TimeBot
         {
             if (result.TopScoringIntent.Score < 0.6)
             {
-                None(context);
+                await None(context);
             }
             else
             {
+
                 Models.User user = GetUser(context);
-                //bool existingUser;
-                //context.PrivateConversationData.TryGetValue<bool>("isExistingUser", out existingUser);
                 if (user.ExistingUser.Equals(1))
                 {
                     context.PrivateConversationData.SetValue<string>("Username", user.UserName);
@@ -189,15 +191,15 @@ namespace TimeBot
         {
             string username = await result;
 
-            Models.TimeBotDBEntities1 db = new Models.TimeBotDBEntities1();
+            Models.BotDataEntities db = new Models.BotDataEntities();
             Models.User newUser = new Models.User();
-            int id;
-            context.PrivateConversationData.TryGetValue<int>("Id", out id);
 
-            newUser = db.Users.FindAsync(id).Result;
+            string userId = context.Activity.From.Id;
+
+            newUser = db.Users.Find(userId);
             newUser.UserName = username;
             newUser.ExistingUser = 1;
-            db.SaveChangesAsync();
+            await db.SaveChangesAsync();
 
             context.PrivateConversationData.SetValue<string>("Username", username);
             await context.PostAsync($"Pleasure to meet you {username}.");
@@ -207,12 +209,11 @@ namespace TimeBot
 
         private Models.User GetUser(IDialogContext context)
         {
-            Models.TimeBotDBEntities1 db = new Models.TimeBotDBEntities1();
+            Models.BotDataEntities db = new Models.BotDataEntities();
             Models.User user = new Models.User();
-            int id;
-            context.PrivateConversationData.TryGetValue<int>("Id", out id);
 
-            user = db.Users.FindAsync(id).Result;
+            string userId = context.Activity.From.Id;
+            user = db.Users.Find(userId);
             return user;
         }
 
@@ -222,7 +223,7 @@ namespace TimeBot
         {
             if (result.TopScoringIntent.Score < 0.6)
             {
-                None(context);
+                await None(context);
             }
             else
             {
@@ -237,7 +238,7 @@ namespace TimeBot
                     await context.PostAsync("Until we meet again stranger, take care.");
                 }
             }
-            
+
         }
 
         //Get the time
@@ -246,7 +247,7 @@ namespace TimeBot
         {
             if (result.TopScoringIntent.Score < 0.6)
             {
-                None(context);
+                await None(context);
             }
             else
             {
@@ -285,7 +286,7 @@ namespace TimeBot
                 {
                     name = new EntityRecommendation(type: Entity_Event_Name) { Entity = DefaultEventName };
                     //Create the new event object
-                    var newEvent = new Event() { Name = name.Entity};
+                    var newEvent = new Event() { Name = name.Entity };
                     //Add the new event to the list of events and also save it in order to add content to it later
                     eventToCreate = this.eventByTitle[newEvent.Name] = newEvent;
                     PromptDialog.Text(context, After_NamePrompt, "What would you like to call your event?");
@@ -300,7 +301,7 @@ namespace TimeBot
                     eventToCreate.PersonName = newEvent.PersonName;
                     existingPerson = true;
                     PromptDialog.Text(context, After_NamePrompt, "What would you like to call this event?");
-                }                      
+                }
                 else if ((result.TryFindEntity(Entity_Event_Name, out name)) && (!result.TryFindEntity(Entity_Event_DateTime, out time)) && (!result.TryFindEntity(Entity_Event_Person_Name, out person)))
                 {
                     //Create the new event object
@@ -335,7 +336,7 @@ namespace TimeBot
                 {
                     name = new EntityRecommendation(type: Entity_Event_Name) { Entity = DefaultEventName };
                     //Create the new event object
-                    var newEvent = new Event() { Name = name.Entity, Time = time.Entity , PersonName = person.Entity};
+                    var newEvent = new Event() { Name = name.Entity, Time = time.Entity, PersonName = person.Entity };
                     //Add the new event to the list of events and also save it in order to add content to it later
                     eventToCreate = this.eventByTitle[newEvent.Name] = newEvent;
                     existingTime = true;
@@ -398,7 +399,7 @@ namespace TimeBot
                     //Add the new event to the list of events and also save it in order to add content to it later
                     eventToCreate = this.eventByTitle[newEvent.Name] = newEvent;
                 }
-                
+
 
                 //Ask the user when they want to schedule the event.
                 PromptDialog.Text(context, After_TimePrompt, "When would you like to schedule this event?");
@@ -429,14 +430,14 @@ namespace TimeBot
                     await DisplayEvent(context);
                 }
 
-                
-            }     
-                  
+
+            }
+
         }
         public enum PersonQueryOptions
         {
-           Yes,
-           No
+            Yes,
+            No
         }
 
         public virtual async Task PersonQueryPrompt(IDialogContext context)
@@ -479,13 +480,13 @@ namespace TimeBot
 
             if (eventToCreate.PersonName == null)
             {
-                PersonQueryPrompt(context);
+                await PersonQueryPrompt(context);
             }
             else
             {
                 await DisplayEvent(context);
             }
-            
+
         }
 
         private async Task After_PersonNamePrompt(IDialogContext context, IAwaitable<string> result)
@@ -505,8 +506,8 @@ namespace TimeBot
             else
             {
                 message = "I've created the event ";
-            }            
-            
+            }
+
             if (this.eventToCreate.PersonName == null)
             {
                 message = message + $"**{ this.eventToCreate.Name}** which is scheduled for {this.eventToCreate.Time}.";
@@ -525,7 +526,7 @@ namespace TimeBot
         {
             if (result.TopScoringIntent.Score < 0.6)
             {
-                None(context);
+                await None(context);
             }
             else
             {
@@ -551,7 +552,7 @@ namespace TimeBot
         {
             if (result.TopScoringIntent.Score < 0.4)
             {
-                None(context);
+                await None(context);
             }
             else
             {
@@ -580,7 +581,7 @@ namespace TimeBot
         {
             if (result.TopScoringIntent.Score < 0.6)
             {
-                None(context);
+                await None(context);
             }
             else
             {
@@ -608,7 +609,7 @@ namespace TimeBot
         {
             if (result.TopScoringIntent.Score < 0.6)
             {
-                None(context);
+                await None(context);
             }
             else
             {
@@ -657,7 +658,7 @@ namespace TimeBot
         {
             if (result.TopScoringIntent.Score < 0.6)
             {
-                None(context);
+                await None(context);
             }
             else
             {
@@ -702,16 +703,16 @@ namespace TimeBot
         [LuisIntent("")]
         public async Task None(IDialogContext context, LuisResult result)
         {
-            None(context);    
-        }        
-        
+            await None(context);
+        }
+
         private async Task None(IDialogContext context)
         {
             string message = "Sorry, I didn't get that. Try again or ask me for help.";
             await context.PostAsync(message);
             context.Wait(MessageReceived);
         }
-        
+
     }
 
 }

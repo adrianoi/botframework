@@ -14,7 +14,7 @@ public class TimeRetriver
     public TimeRetriver(string country)
     {
         this.country = country;
-        setAsCountryTime();        
+        setAsCountryTime();
     }
 
     private void setAsCountryTime()
